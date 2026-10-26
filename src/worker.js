@@ -3,6 +3,8 @@
 // le richieste a /api/... (vedi run_worker_first in wrangler.jsonc). Il database e' il binding "DB";
 // la password dell'amministratore e' il segreto "ADMIN_PASSWORD" (impostato su Cloudflare, mai nel codice).
 
+import { handlePush, runDaily } from './push.js';
+
 const TZ = 'Europe/Rome';
 const ADMIN_DEPT = 'Amministratore';
 const ADMIN_NAME = 'Andrea Agamennone';
@@ -429,6 +431,7 @@ async function handle(request, env) {
     if (m === 'POST' && path[0] === 'openings' && path[2] === 'close' && path.length === 3) return json(await closeOpening(env, s, path[1]));
     if (m === 'POST' && route === 'arrivals') return json(await saveArrival(env, s, await readBody(request)));
     if (m === 'POST' && path[0] === 'arrivals' && path[2] === 'remove' && path.length === 3) return json(await removeArrival(env, s, path[1]));
+    if (path[0] === 'push') return json(await handlePush(env, s, m, path.slice(1), m === 'POST' ? await readBody(request) : {}, HttpError, nowLocal()));
     if (path[0] === 'admin') return json(await admin(env, s, request, path.slice(1)));
     throw new HttpError(404, 'Funzione non trovata.');
   } catch (e) {
@@ -438,4 +441,8 @@ async function handle(request, env) {
   }
 }
 
-export default { fetch: (request, env) => handle(request, env) };
+export default {
+  fetch: (request, env) => handle(request, env),
+  // Avviso del mattino sui telefoni (vedi "triggers" in wrangler.jsonc).
+  scheduled: (event, env, ctx) => { ctx.waitUntil(runDaily(env, nowLocal()).catch(e => console.error(e && e.stack || e))); }
+};
