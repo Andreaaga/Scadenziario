@@ -97,7 +97,7 @@ const KEY='scadenzario_v1', SKEY='scadenzario_session_v1';
 const ADMIN_DEPT='Amministratore', ADMIN_NAME='Andrea Agamennone';
 const DEFAULTS=()=>({shop:{name:'',address:'',piva:''},urgentDays:1,soonDays:3,
   depts:{Gastronomia:[],Macelleria:[],Panetteria:[],Ortofrutta:[]},
-  durations:{},openings:[],arrivals:[],seq:1});
+  durations:{},durPending:{},openings:[],arrivals:[],seq:1});
 function load(){try{const r=localStorage.getItem(KEY);return r?Object.assign(DEFAULTS(),JSON.parse(r)):DEFAULTS()}catch(e){return DEFAULTS()}}
 let db=load();
 function loadSess(){try{return JSON.parse(localStorage.getItem(SKEY)||'null')}catch(e){return null}}
@@ -216,6 +216,7 @@ async function handlePhoto(file){
 }
 
 /* ====== Logica ====== */
+function pendN(){return Object.keys(db.durPending).filter(x=>db.durations[x]!=null).length}
 function durLocked(f){const k=akey(f.articolo);return !isAdmin()&&k&&db.durations[k]!=null}
 function applyDuration(f){const k=akey(f.articolo);if(k&&db.durations[k]!=null)f.durata=String(db.durations[k])}
 function dupsOf(f){
@@ -232,7 +233,7 @@ function saveForm(){
   if(f.kind==='open'){
     const dur=f.durata===''?'':Number(f.durata);
     const k=akey(art);
-    if(k&&dur>0&&(isAdmin()||db.durations[k]==null))db.durations[k]=dur;
+    if(k&&dur>0&&(isAdmin()||db.durations[k]==null)){db.durations[k]=dur;if(isAdmin())delete db.durPending[k];else db.durPending[k]=true}
     dupsOf(f).forEach(o=>closeOpening(o,'Sostituito da nuova apertura'));
     const rec={id:f.id||nid(),dept:f.dept,articolo:art,lotto:f.lotto.trim(),scad:f.scad,aperto:f.aperto,durata:dur,foto:f.foto||null,
       stato:'aperto',opAperto:f.opAperto||sess.op,chiusoIl:null,motivo:null,opChiuso:null};
@@ -314,7 +315,8 @@ function vList(){
   }else{
     const toc=by(incs);const ok=by(open.filter(o=>!incomplete(o)));
     const recent=closed.filter(o=>o.chiusoIl&&new Date(o.chiusoIl)>=dayAgo);
-    body=(toc.length?`<div class="sec">DA COMPLETARE (${toc.length})</div>${toc.map(card).join('')}`:'')+
+    const np=Object.keys(db.durPending).filter(x=>db.durations[x]!=null).length;
+    body=(isAdmin()&&np?`<button type="button" class="card dash" style="text-align:left;font:inherit;cursor:pointer" data-a="toDurations"><strong style="font-size:14px">${np} durat${np===1?'a':'e'} da validare ›</strong><span class="s">Imparate da un operatore: controllale nelle impostazioni.</span></button>`:'')+(toc.length?`<div class="sec">DA COMPLETARE (${toc.length})</div>${toc.map(card).join('')}`:'')+
       `<div class="sec">APERTI (${ok.length})</div>${ok.length?ok.map(card).join(''):'<p class="hint">Nessun prodotto aperto.</p>'}`+
       (recent.length?`<div class="sec">CHIUSI NELLE ULTIME 24 ORE (${recent.length})</div>${recent.map(card).join('')}`:'');
   }
@@ -345,7 +347,7 @@ function derived(){
   return {
     dl:f.kind==='open'?`<span style="font-size:13px;color:#333">Scade (il primo tra scadenza confezione e durata dopo apertura)</span><strong style="font-size:18px">${dl?fDay(dl):'—'}</strong>`:'',
     dup:d.map(o=>`<div class="card"><strong style="font-size:14px">C'è già ${esc(o.articolo)} aperto${o.lotto?' (lotto '+esc(o.lotto)+')':''}</strong><span class="s">Salvando, quello passa in chiusura come "sostituito da nuova apertura".</span></div>`).join(''),
-    dur:k&&db.durations[k]!=null?(isAdmin()?'Durata conosciuta: '+db.durations[k]+' gg (puoi cambiarla come admin)':'Articolo già noto: durata '+db.durations[k]+' gg, modificabile solo dall\'amministratore'):(k?'Articolo nuovo: la durata che inserisci verrà ricordata':''),
+    dur:k&&db.durations[k]!=null&&db.durPending[k]?(isAdmin()?'Durata '+db.durations[k]+' gg, DA VALIDARE: se è giusta salvando la validi, altrimenti correggila':'Durata '+db.durations[k]+' gg, in attesa di validazione dell\'amministratore'):k&&db.durations[k]!=null?(isAdmin()?'Durata conosciuta: '+db.durations[k]+' gg (puoi cambiarla come admin)':'Articolo già noto: durata '+db.durations[k]+' gg, modificabile solo dall\'amministratore'):(k?'Articolo nuovo: la durata che inserisci verrà ricordata':''),
     locked:durLocked(f)
   };
 }
@@ -434,7 +436,7 @@ function vSettings(){
    <button type="button" class="btn dark sm" data-a="saveShop">Salva dati negozio</button><p class="hint">Compaiono nell'intestazione di ogni report stampato.</p>`
    :`<p class="hint">${sh.name?esc(sh.name)+' · '+esc(sh.address)+' · P.IVA '+esc(sh.piva):'Non ancora impostati. Riservato all\'amministratore.'}</p>`}</div>
   <div class="card"><div class="sep"><strong>Gestione</strong><span class="tag">SOLO ADMIN</span></div>
-   ${ad?`<button type="button" class="btn" style="text-align:left" data-a="sub" data-v="durations">Durate degli articoli ›</button>
+   ${ad?`<button type="button" class="btn" style="text-align:left" data-a="sub" data-v="durations">Durate degli articoli${pendN()?' ('+pendN()+' da validare)':''} ›</button>
    <button type="button" class="btn" style="text-align:left" data-a="sub" data-v="staff">Reparti e operatori ›</button>
    <button type="button" class="btn" style="text-align:left" data-a="exportJson">Esporta tutti i dati (copia di sicurezza)</button>
    <button type="button" class="btn" style="text-align:left" data-a="exportCsv">Esporta registro aperture (CSV)</button>
@@ -444,10 +446,10 @@ function vSettings(){
   </main>`+tabs('settings');
 }
 function vDurations(){
-  const ks=Object.keys(db.durations).sort();
+  const ks=Object.keys(db.durations).sort((a,b)=>(db.durPending[b]?1:0)-(db.durPending[a]?1:0)||(a<b?-1:1));
   return topbar('Durate degli articoli',null,'<button type="button" class="btn sm" data-a="sub" data-v="">Indietro</button>')+`<main>${msgBox()}
   <p class="hint">Giorni di validità dopo l'apertura. Si imparano dalla prima apertura di ogni articolo; qui li correggi solo tu.</p>
-  ${ks.map(k=>`<div class="row" style="align-items:flex-end"><div class="f grow"><label for="d-${esc(k)}">${esc(k)}</label><input id="d-${esc(k)}" type="number" inputmode="numeric" min="1" data-dur="${esc(k)}" value="${db.durations[k]}"></div><button type="button" class="btn sm" data-a="delDur" data-k="${esc(k)}" aria-label="Elimina ${esc(k)}">Elimina</button></div>`).join('')||'<p class="hint">Nessun articolo ancora.</p>'}
+  ${ks.map(k=>`<div class="row" style="align-items:flex-end"><div class="f grow"><label for="d-${esc(k)}">${esc(k)}${db.durPending[k]?' <strong>· DA VALIDARE</strong>':''}</label><input id="d-${esc(k)}" type="number" inputmode="numeric" min="1" data-dur="${esc(k)}" value="${db.durations[k]}"></div>${db.durPending[k]?`<button type="button" class="btn sm dark" data-a="valDur" data-k="${esc(k)}">Valida</button>`:''}<button type="button" class="btn sm" data-a="delDur" data-k="${esc(k)}" aria-label="Elimina ${esc(k)}">Elimina</button></div>`).join('')||'<p class="hint">Nessun articolo ancora.</p>'}
   <div class="card"><strong>Aggiungi articolo</strong>
    <div class="f"><label for="d-new-n">Articolo</label><input id="d-new-n" type="text"></div>
    <div class="f"><label for="d-new-d">Giorni</label><input id="d-new-d" type="number" inputmode="numeric" min="1"></div>
@@ -528,8 +530,10 @@ const A={
   },
   demo:()=>{ui.modal={title:'Caricare dati di prova?',text:'Aggiunge alcune aperture e arrivi di esempio ai dati esistenti.',yes:'Carica',fn:seedDemo};render()},
   wipe:()=>{ui.modal={title:'Cancellare tutto?',text:'Elimina aperture, arrivi, durate e dati del negozio su questo telefono. Non si può annullare.',yes:'Cancella tutto',fn:()=>{db=DEFAULTS();persist();ui.msg='Dati cancellati.'}};render()},
-  delDur:t=>{delete db.durations[t.dataset.k];persist();render()},
-  addDur:()=>{const n=akey($('#d-new-n').value);const d=Number($('#d-new-d').value);if(!n||!(d>0)){ui.msg='Inserisci articolo e giorni.';render();return}db.durations[n]=d;persist();render()},
+  delDur:t=>{delete db.durations[t.dataset.k];delete db.durPending[t.dataset.k];persist();render()},
+  valDur:t=>{delete db.durPending[t.dataset.k];persist();ui.msg='Durata validata: '+t.dataset.k+'.';render()},
+  toDurations:()=>{ui.view='settings';ui.sub='durations';ui.form=null;render();window.scrollTo(0,0)},
+  addDur:()=>{const n=akey($('#d-new-n').value);const d=Number($('#d-new-d').value);if(!n||!(d>0)){ui.msg='Inserisci articolo e giorni.';render();return}db.durations[n]=d;delete db.durPending[n];persist();render()},
   addOp:t=>{const d=t.dataset.d;const v=$('#o-'+CSS.escape(d)).value.trim();if(!v)return;if(!db.depts[d].includes(v))db.depts[d].push(v);persist();render()},
   delOp:t=>{db.depts[t.dataset.d].splice(+t.dataset.i,1);persist();render()},
   addDept:()=>{const v=$('#o-newdept').value.trim();if(!v||v===ADMIN_DEPT||db.depts[v])return;db.depts[v]=[];persist();render()}
@@ -581,7 +585,7 @@ document.addEventListener('input',e=>{
   else if(t.dataset.r){ui.report[t.dataset.r]=t.value;if(t.tagName==='SELECT'||t.type==='date')render()}
   else if(t.dataset.s){const v=Math.max(0,Number(t.value)||0);db[t.dataset.s]=v;persist()}
   else if(t.dataset.shop){db.shop[t.dataset.shop]=t.value}
-  else if(t.dataset.dur){const v=Number(t.value);if(v>0){db.durations[t.dataset.dur]=v;persist()}}
+  else if(t.dataset.dur){const v=Number(t.value);if(v>0){db.durations[t.dataset.dur]=v;delete db.durPending[t.dataset.dur];persist();render()}}
 });
 document.addEventListener('change',e=>{
   const t=e.target;
