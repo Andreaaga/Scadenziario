@@ -76,12 +76,19 @@ tr.cl td{background:#d9d9d9}
  .printonly{display:block}
  th,td{font-size:11px}
 }
+#vf{position:fixed;inset:0;z-index:1000;background:#000;display:flex;flex-direction:column}
+#vf[hidden]{display:none}
+#vf video{flex:1;min-height:0;width:100%;object-fit:cover}
+#vf p{margin:0;padding:8px 16px;color:#fff;font:14px system-ui;text-align:center}
+.vfbar{display:flex;gap:12px;padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.vfbar .btn{flex:1;min-height:56px}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="gal" accept="image/*" hidden>
+<div id="vf" hidden><video id="vfv" playsinline muted autoplay></video><p>Inquadra l'etichetta da vicino, senza riflessi</p><div class="vfbar"><button type="button" class="btn" data-a="vfClose">Annulla</button><button type="button" class="btn dark" data-a="vfSnap">Scatta</button></div></div>
 
 <script>
 'use strict';
@@ -164,6 +171,31 @@ function scaled(img,max){const r=Math.min(1,max/Math.max(img.width,img.height));
 function enhance(c){const x=c.getContext('2d');const id=x.getImageData(0,0,c.width,c.height);const p=id.data;
   for(let i=0;i<p.length;i+=4){let g=0.3*p[i]+0.59*p[i+1]+0.11*p[i+2];g=(g-128)*1.5+128;g=g<0?0:g>255?255:g;p[i]=p[i+1]=p[i+2]=g}
   x.putImageData(id,0,0);return c}
+/* Mirino interno: impone la camera posteriore (l'attributo capture è solo un suggerimento e alcuni telefoni lo ignorano) */
+let vfStream=null;
+async function openCamera(){
+  const md=navigator.mediaDevices;
+  if(!md||!md.getUserMedia){$('#cam').click();return}
+  const base={width:{ideal:1920},height:{ideal:1080}};
+  try{vfStream=await md.getUserMedia({audio:false,video:Object.assign({facingMode:{exact:'environment'}},base)})}
+  catch(e){
+    try{vfStream=await md.getUserMedia({audio:false,video:Object.assign({facingMode:{ideal:'environment'}},base)})}
+    catch(e2){if(ui.form){ui.form.ocr='Fotocamera non disponibile: consenti l\'accesso alla fotocamera nelle impostazioni del browser, oppure usa "Galleria".';render()}return}
+  }
+  const v=$('#vfv');v.srcObject=vfStream;$('#vf').hidden=false;
+  try{await v.play()}catch(e){}
+}
+function closeCamera(){
+  if(vfStream){vfStream.getTracks().forEach(t=>t.stop());vfStream=null}
+  const v=$('#vfv');if(v)v.srcObject=null;const o=$('#vf');if(o)o.hidden=true;
+}
+function snapCamera(){
+  const v=$('#vfv');if(!vfStream||!v.videoWidth)return;
+  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);closeCamera();
+  c.toBlob(b=>handlePhoto(b),'image/jpeg',0.92);
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)closeCamera()});
 async function handlePhoto(file){
   if(!file||!ui.form)return;
   const f=ui.form;f.ocr='Lettura della foto in corso… (la prima volta può richiedere qualche secondo)';render();
@@ -479,7 +511,9 @@ const A={
     if(d.length&&f.kind==='open'){ui.modal={title:'Prodotto già aperto',text:'C\'è già "'+d[0].articolo+'" aperto. Salvando, quello passa in chiusura come "sostituito da nuova apertura". Continuare?',yes:'Salva e chiudi il vecchio',fn:saveForm};render();return}
     saveForm();
   },
-  cam:()=>$('#cam').click(),
+  cam:()=>openCamera(),
+  vfClose:()=>closeCamera(),
+  vfSnap:()=>snapCamera(),
   gal:()=>$('#gal').click(),
   modalNo:()=>{ui.modal=null;render()},
   modalYes:()=>{const m=ui.modal;ui.modal=null;if(m&&m.fn)m.fn();render()},
@@ -503,7 +537,9 @@ const A={
 const AC={
   loginDept:t=>{ui.login.dept=t.value;ui.login.op='';render()},
   loginOp:t=>{ui.login.op=t.value;render()},
-  close:t=>{const o=db.openings.find(x=>x.id==t.dataset.id);if(!o||!t.checked)return;closeOpening(o,'Terminato al banco');persist();ui.msg='Chiuso: '+(o.articolo||'prodotto')+'.';render()},
+  close:t=>{const o=db.openings.find(x=>x.id==t.dataset.id);if(!o||!t.checked)return;
+    ui.modal={title:'Chiudere il prodotto?',text:'"'+(o.articolo||'prodotto')+'"'+(o.lotto?' (lotto '+o.lotto+')':'')+' passa in chiusura come "terminato al banco". Dopo la conferma non si può più riaprire.',yes:'Sì, chiudi',
+      fn:()=>{closeOpening(o,'Terminato al banco');persist();ui.msg='Chiuso: '+(o.articolo||'prodotto')+'.'}};render()},
   allDepts:t=>{ui.allDepts=t.checked;render()}
 };
 function seedDemo(){
