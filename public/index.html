@@ -523,7 +523,7 @@ function vSettings(){
    <div class="row"><div class="f"><label for="s-u">Urgente, giorni prima</label><input id="s-u" type="number" inputmode="numeric" min="0" data-s="urgentDays" value="${db.urgentDays}" ${ad?'':'disabled'}></div>
    <div class="f"><label for="s-s">In scadenza, giorni prima</label><input id="s-s" type="number" inputmode="numeric" min="0" data-s="soonDays" value="${db.soonDays}" ${ad?'':'disabled'}></div></div>
    <p class="hint">Gli avvisi compaiono in cima alla lista ogni volta che apri lo Scadenzario.${ad?'':' Le soglie le imposta l\'amministratore.'}</p>
-   <label class="chk"><input type="checkbox" disabled> Notifiche sul telefono (in arrivo: richiedono il collegamento al server)</label></div>
+   </div>${vPush()}
   <div class="card"><div class="sep"><strong>Dati del negozio</strong><span class="tag">SOLO ADMIN</span></div>
    ${ad?`<div class="f"><label for="n-n">Nome negozio</label><input id="n-n" type="text" data-shop="name" value="${esc(sh.name)}"></div>
    <div class="f"><label for="n-a">Indirizzo</label><input id="n-a" type="text" data-shop="address" value="${esc(sh.address)}"></div>
@@ -582,7 +582,32 @@ function render(){
 }
 
 /* ====== Azioni ====== */
-function go(v){ui.view=v;ui.sub=null;ui.form=null;render();window.scrollTo(0,0);if(v==='report')loadReport()}
+function go(v){ui.view=v;ui.sub=null;ui.form=null;render();window.scrollTo(0,0);if(v==='report')loadReport();if(v==='settings')pushStatus()}
+/* ====== Notifiche sul telefono ====== */
+const PUSH_OK='serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+ui.push={state:PUSH_OK?(Notification.permission==='denied'?'denied':'unknown'):'unsupported',depts:[],sel:[]};
+const urlB64=s=>{const b=atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function pushSub(){const reg=await navigator.serviceWorker.getRegistration('/');return reg?await reg.pushManager.getSubscription():null}
+async function pushStatus(){
+  if(!PUSH_OK||!sess)return;
+  try{
+    if(Notification.permission==='denied'){ui.push.state='denied'}
+    else{const sub=await pushSub();
+      if(!sub)ui.push.state='off';
+      else{const r=await api('/push/status',{endpoint:sub.endpoint});ui.push.state=r.subscribed?'on':'off';ui.push.depts=r.depts}}
+  }catch(e){ui.push.state='off'}
+  if(ui.view==='settings'&&!ui.sub)render();
+}
+function vPush(){
+  const p=ui.push;let b;
+  if(p.state==='unsupported')b='<p class="hint">Questo browser non supporta le notifiche. Su iPhone installa prima l\'app dalla schermata Home (serve iOS 16.4 o successivo).</p>';
+  else if(p.state==='denied')b='<p class="hint">Le notifiche sono bloccate per questo sito: riattivale dalle impostazioni del telefono.</p>';
+  else if(p.state==='unknown')b='<p class="hint">Controllo…</p>';
+  else if(p.state==='on')b=`<p class="hint">Attive su questo telefono per: <strong>${esc(p.depts.join(', '))}</strong>. Ogni mattina alle 7:30 ricevi il riepilogo di prodotti scaduti, urgenti e in scadenza (solo se ce ne sono). Se esci dall'app le notifiche si disattivano.</p>
+   <div class="row"><button type="button" class="btn sm grow" data-a="pushTest">Invia notifica di prova</button><button type="button" class="btn sm grow" data-a="pushOff">Disattiva</button></div>`;
+  else b=(isAdmin()?`<p class="hint">Scegli di quali reparti ricevere l'avviso su questo telefono:</p>${Object.keys(db.depts).map(d=>`<label class="chk"><input type="checkbox" data-a-change="pushDept" data-d="${esc(d)}" ${p.sel.includes(d)?'checked':''}> ${esc(d)}</label>`).join('')}`:`<p class="hint">Riceverai l'avviso del tuo reparto (${esc(sess.dept)}).</p>`)+'<button type="button" class="btn dark sm" data-a="pushOn">Attiva le notifiche</button>';
+  return `<div class="card"><strong>Notifiche sul telefono</strong>${b}</div>`;
+}
 const A={
   go:t=>go(t.dataset.v),
   filter:t=>{ui.filter=t.dataset.v;render()},
@@ -604,6 +629,7 @@ const A={
   loginBack:()=>{ui.login.stage=1;ui.login.ticket='';ui.msg='';render()},
   retry:()=>boot(),
   logout:()=>runR(async()=>{
+    try{const sb=PUSH_OK&&await pushSub();if(sb){await api('/push/unsubscribe',{endpoint:sb.endpoint});await sb.unsubscribe()}}catch(e){}
     const tok=sess&&sess.token;sess=null;saveSess();
     try{await fetch('/api/logout',{method:'POST',headers:{Authorization:'Bearer '+tok}})}catch(e){}
     db=EMPTY();ui.view='login';ui.sub=null;ui.form=null;ui.login=newLogin();loadDepts();
@@ -634,6 +660,27 @@ const A={
   modalNo:()=>{ui.modal=null;render()},
   modalYes:()=>{const m=ui.modal;ui.modal=null;if(m&&m.fn)m.fn();render()},
   print:()=>window.print(),
+  pushOn:()=>runR(async()=>{
+    const p=ui.push,depts=isAdmin()?p.sel.slice():[sess.dept];
+    if(!depts.length)throw{message:'Scegli almeno un reparto.'};
+    if(await Notification.requestPermission()!=='granted'){p.state=Notification.permission==='denied'?'denied':'off';throw{message:'Permesso per le notifiche non concesso.'}}
+    const reg=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+    const k=await api('/push/key');
+    const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(k.key)});
+    const j=sub.toJSON();
+    const r=await api('/push/subscribe',{endpoint:j.endpoint,keys:j.keys,depts});
+    p.state='on';p.depts=r.depts;ui.msg='Notifiche attivate.';
+  }),
+  pushOff:()=>runR(async()=>{
+    const sub=await pushSub();
+    if(sub){try{await api('/push/unsubscribe',{endpoint:sub.endpoint})}catch(e){}await sub.unsubscribe()}
+    ui.push.state='off';ui.push.depts=[];ui.msg='Notifiche disattivate.';
+  }),
+  pushTest:()=>runR(async()=>{
+    const sub=await pushSub();if(!sub)throw{message:'Notifiche non attive su questo telefono.'};
+    const r=await api('/push/test',{endpoint:sub.endpoint});
+    ui.msg=r.status>=200&&r.status<300?'Notifica inviata: dovrebbe comparire entro pochi secondi.':'Il servizio notifiche ha risposto con errore ('+(r.status||'nessuna risposta')+').';
+  }),
   saveShop:()=>saveSettings('Dati del negozio salvati.'),
   exportJson:()=>runR(async()=>{const j=await api('/admin/export');download('scadenzario-backup-'+todayDay()+'.json',JSON.stringify(j,null,1),'application/json')}),
   exportCsv:()=>runR(async()=>{
@@ -659,7 +706,8 @@ const AC={
   close:t=>{const o=db.openings.find(x=>x.id==t.dataset.id);if(!o||!t.checked)return;
     ui.modal={title:'Chiudere il prodotto?',text:'"'+(o.articolo||'prodotto')+'"'+(o.lotto?' (lotto '+o.lotto+')':'')+' passa in chiusura come "terminato al banco". Dopo la conferma non si può più riaprire.',yes:'Sì, chiudi',
       fn:()=>act(()=>api('/openings/'+encodeURIComponent(o.id)+'/close',{}),'Chiuso: '+(o.articolo||'prodotto')+'.')};render()},
-  allDepts:t=>{ui.allDepts=t.checked;render()}
+  allDepts:t=>{ui.allDepts=t.checked;render()},
+  pushDept:t=>{const s=ui.push.sel,d=t.dataset.d,i=s.indexOf(d);if(t.checked&&i<0)s.push(d);else if(!t.checked&&i>=0)s.splice(i,1)}
 };
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-a]');if(!t||t.disabled)return;
