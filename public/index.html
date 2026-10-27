@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Scadenzario</title>
-<meta name="theme-color" content="#111111">
+<meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -92,6 +92,82 @@ tr.cl td{background:#d9d9d9}
 #netbar{position:fixed;top:0;left:0;right:0;z-index:900;background:#111;color:#fff;font:700 13px system-ui;text-align:center;padding:6px 8px}
 body.busy #app{opacity:.55;pointer-events:none}
 @media print{#netbar{display:none!important}}
+</style>
+<style id="tema">
+/* Scadenzario: stile "pulito" bianco e blu. Si carica DOPO lo stile interno di index.html e lo sostituisce. */
+:root{
+ --blue:#0071E3;--blue-press:#0058B0;
+ --blue-50:#F0F7FF;--blue-100:#E0EFFF;
+ --line:#D6E4F5;--field:#A3B3C7;
+ --bg:#F5F8FC;--ink:#1D1D1F;--ink2:#6E6E73;
+ --r:14px;--r2:10px;
+}
+body{color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+#app{background:var(--bg);border-inline:1px solid var(--line)}
+
+/* Intestazione e barra in basso */
+header.top{background:#fff;border-bottom:1px solid var(--line)}
+header.top h1{font-weight:600}
+header.top small{color:var(--ink2)}
+nav.tabs{border-top:1px solid var(--line);background:#fff}
+nav.tabs button{border-right:0;background:#fff;color:var(--ink2);font-weight:600;-webkit-tap-highlight-color:transparent}
+nav.tabs button.active{background:#fff;color:var(--blue);font-weight:600;box-shadow:inset 0 2px 0 var(--blue)}
+
+/* Pulsanti */
+.btn{border:1px solid var(--line);border-radius:var(--r2);background:#fff;color:var(--blue);font-weight:600;-webkit-tap-highlight-color:transparent}
+.btn:active{background:var(--blue-100)}
+.btn.dark{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.dark:active{background:var(--blue-press);border-color:var(--blue-press)}
+.chip{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:500;-webkit-tap-highlight-color:transparent}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* Schede */
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r)}
+.card.dash{border:1px dashed #98A2B3}
+.card.grey{background:var(--blue-50);border-color:var(--line)}
+.card.closed{background:#F2F4F7;border-color:#E4E7EC;color:#667085}
+.t{font-weight:600}
+.s{color:var(--ink2)}
+.sec{color:var(--ink2);font-weight:600;letter-spacing:.06em}
+.hint{color:var(--ink2)}
+.warn{color:var(--blue-press);font-weight:600}
+
+/* Stati: sfondo chiaro + testo scuro + pallino (il testo dello stato resta sempre scritto) */
+.badge{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:3px 10px 3px 8px;font-weight:600;
+ background:#FEFBE8;color:#854A0E;--dot:#EAB308}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot);flex:none}
+.badge.fill{background:#FFF4ED;color:#B93815;--dot:#EF6820}
+.badge.dbl{background:#FEF3F2;color:#B42318;outline:0;--dot:#D92D20}
+.card.closed .badge{background:#E4E7EC;color:#475467;--dot:#98A2B3}
+.tag{background:var(--blue-100);color:var(--blue-press);border:0;border-radius:6px;font-weight:600}
+
+/* Campi */
+.f label{font-weight:600}
+input,select{border:1px solid var(--field);border-radius:var(--r2);color:var(--ink);background:#fff}
+input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,113,227,.2)}
+input.auto{border:1px dashed var(--blue);background:var(--blue-50)}
+input[readonly]{background:#F2F4F7}
+input[type=checkbox]{accent-color:var(--blue)}
+.photo{border:1px dashed var(--field);border-radius:var(--r2);background:var(--blue-50);color:var(--ink2)}
+
+/* Messaggi e finestre di conferma */
+.msg{border:0;border-radius:var(--r2);background:var(--blue-100);color:#0B3D7A}
+.overlay{background:rgba(16,24,40,.45)}
+.modal{border:0;border-radius:16px;box-shadow:0 10px 30px rgba(16,24,40,.18)}
+
+/* Movimento: solo colore, 120 ms; spento se il telefono chiede meno animazioni */
+.btn,.chip,nav.tabs button,input,select{transition:background-color .12s,color .12s,border-color .12s,box-shadow .12s}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Tabella del report: morbida a schermo; in stampa restano i bordi neri di prima */
+@media screen{
+ th,td{border:1px solid var(--line)}
+ th{background:var(--blue-50)}
+ tr.cl td{background:#F2F4F7}
+}
+
+/* Font: Roboto su Android, font di sistema Apple su iPhone */
+body,button,input,select,.btn,.chip,.badge,.tag,nav.tabs button,#vf p{font-family:-apple-system,BlinkMacSystemFont,Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif}
 </style>
 </head>
 <body>
@@ -439,7 +515,7 @@ function derived(){
   const d=dupsOf(f);
   const k=akey(f.articolo);
   return {
-    dl:f.kind==='open'?`<span style="font-size:13px;color:#333">Scade (il primo tra scadenza confezione e durata dopo apertura)</span><strong style="font-size:18px">${dl?fDay(dl):'—'}</strong>`:'',
+    dl:f.kind==='open'?`<span style="font-size:13px;color:var(--ink2)">Scade (il primo tra scadenza confezione e durata dopo apertura)</span><strong style="font-size:18px">${dl?fDay(dl):'—'}</strong>`:'',
     dup:d.map(o=>`<div class="card"><strong style="font-size:14px">C'è già ${esc(o.articolo)} aperto${o.lotto?' (lotto '+esc(o.lotto)+')':''}</strong><span class="s">Salvando, quello passa in chiusura come "sostituito da nuova apertura".</span></div>`).join(''),
     dur:k&&db.durations[k]!=null&&db.durPending[k]?(isAdmin()?'Durata '+db.durations[k]+' gg, DA VALIDARE: se è giusta salvando la validi, altrimenti correggila':'Durata '+db.durations[k]+' gg, in attesa di validazione dell\'amministratore'):k&&db.durations[k]!=null?(isAdmin()?'Durata conosciuta: '+db.durations[k]+' gg (puoi cambiarla come admin)':'Articolo già noto: durata '+db.durations[k]+' gg, modificabile solo dall\'amministratore'):(k?'Articolo nuovo: la durata che inserisci verrà ricordata':''),
     locked:durLocked(f)
@@ -476,7 +552,7 @@ function vArrivals(){
     const d=parseDay(a.scad);const left=d?Math.round((sod(d)-sod(new Date()))/864e5):null;
     const t=left==null?'':left<0?'SCADUTO':left<=db.urgentDays?'URGENTE':left<=db.soonDays?'IN SCADENZA':'';
     const inc=!a.articolo||!a.lotto||!a.scad;
-    return `<div class="card ${inc?'dash':''}"><div class="sep"><span class="t">${esc(a.articolo||'(senza nome)')}</span>${t?`<span class="badge ${t==='IN SCADENZA'?'':'fill'}">${t}</span>`:''}</div>
+    return `<div class="card ${inc?'dash':''}"><div class="sep"><span class="t">${esc(a.articolo||'(senza nome)')}</span>${t?`<span class="badge ${t==='IN SCADENZA'?'':t==='SCADUTO'?'dbl':'fill'}">${t}</span>`:''}</div>
     <span class="s">${a.lotto?'Lotto '+esc(a.lotto)+' · ':''}arrivato ${fDT(a.arrivatoIl)}${isAdmin()||ui.allDepts?' · '+esc(a.dept):''}</span>
     <span class="s">Scade ${fD(a.scad)}${inc?' · <b>da completare</b>':''}</span>
     <div class="row" style="flex-wrap:wrap"><button type="button" class="btn sm" data-a="openFromArrival" data-id="${a.id}">Apri</button><button type="button" class="btn sm" data-a="editArrival" data-id="${a.id}">Modifica</button><button type="button" class="btn sm" data-a="removeArrival" data-id="${a.id}">Rimuovi</button></div></div>`}).join(''):'<p class="hint">Nessun arrivo in giacenza.</p>'}
