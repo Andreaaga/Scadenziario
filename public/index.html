@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Scadenzario</title>
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -94,80 +98,116 @@ body.busy #app{opacity:.55;pointer-events:none}
 @media print{#netbar{display:none!important}}
 </style>
 <style id="tema">
-/* Scadenzario: stile "pulito" bianco e blu. Si carica DOPO lo stile interno di index.html e lo sostituisce. */
+/* Scadenzario: stesso stile di HACCP Express (iOS: sfondo grigio chiaro, schede bianche, blu di sistema, tema scuro automatico).
+   Si carica DOPO lo stile interno di index.html e lo sostituisce. La stampa del report resta in bianco e nero. */
 :root{
- --blue:#0071E3;--blue-press:#0058B0;
- --blue-50:#F0F7FF;--blue-100:#E0EFFF;
- --line:#D6E4F5;--field:#A3B3C7;
- --bg:#F5F8FC;--ink:#1D1D1F;--ink2:#6E6E73;
- --r:14px;--r2:10px;
+ --bg:242 242 247;--card:255 255 255;--card2:249 249 251;
+ --label:0 0 0;--label2:99 99 105;--label3:142 142 147;
+ --sep:60 60 67;--fill:120 120 128;
+ --blue:0 122 255;--green:52 199 89;--red:255 59 48;--orange:255 149 0;
+ --ink2:rgb(var(--label2));
+ --r:12px;--r2:16px;
+ color-scheme:light dark;
 }
-body{color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
-#app{background:var(--bg);border-inline:1px solid var(--line)}
+@media screen and (prefers-color-scheme:dark){
+ :root{
+  --bg:0 0 0;--card:28 28 30;--card2:38 38 41;
+  --label:255 255 255;--label2:174 174 178;--label3:142 142 147;
+  --sep:84 84 88;--fill:120 120 128;
+  --blue:10 132 255;--green:48 209 88;--red:255 69 58;--orange:255 159 10;
+ }
+}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{color:rgb(var(--label));background:rgb(var(--bg));font-size:17px;line-height:1.35;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+body,button,input,select,.btn,.chip,.badge,.tag,nav.tabs button,#vf p,#netbar{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+#app{background:rgb(var(--bg));border-inline:0;max-width:512px}
 
-/* Intestazione e barra in basso */
-header.top{background:#fff;border-bottom:1px solid var(--line)}
-header.top h1{font-weight:600}
-header.top small{color:var(--ink2)}
-nav.tabs{border-top:1px solid var(--line);background:#fff}
-nav.tabs button{border-right:0;background:#fff;color:var(--ink2);font-weight:600;-webkit-tap-highlight-color:transparent}
-nav.tabs button.active{background:#fff;color:var(--blue);font-weight:600;box-shadow:inset 0 2px 0 var(--blue)}
+/* Intestazione: titolo grande, barra traslucida */
+header.top{position:sticky;top:0;z-index:5;align-items:flex-end;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:0;
+ background:rgb(var(--bg) / .85);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+header.top h1{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+header.top small{margin-top:2px;font-size:15px;color:rgb(var(--label2))}
+header.top .btn{min-height:44px;padding:0 4px;border:0;background:none;color:rgb(var(--blue));font-size:17px;font-weight:400}
+main{padding:8px 16px calc(104px + env(safe-area-inset-bottom));gap:12px}
 
-/* Pulsanti */
-.btn{border:1px solid var(--line);border-radius:var(--r2);background:#fff;color:var(--blue);font-weight:600;-webkit-tap-highlight-color:transparent}
-.btn:active{background:var(--blue-100)}
-.btn.dark{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn.dark:active{background:var(--blue-press);border-color:var(--blue-press)}
-.chip{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:500;-webkit-tap-highlight-color:transparent}
-.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+/* Barra in basso con icone */
+nav.tabs{height:auto;max-width:512px;padding-bottom:env(safe-area-inset-bottom);border-top:1px solid rgb(var(--sep) / .2);
+ background:rgb(var(--bg) / .85);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);z-index:20}
+nav.tabs button{min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding-top:6px;border:0;background:none;
+ color:rgb(var(--label3));font-size:11px;font-weight:600}
+nav.tabs button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button.active{background:none;color:rgb(var(--blue));font-weight:600}
+nav.tabs button.active svg{stroke-width:2.4}
+
+/* Pulsanti: primario blu pieno, secondario blu tenue */
+.btn{min-height:52px;padding:0 20px;border:0;border-radius:var(--r2);background:rgb(var(--blue) / .1);color:rgb(var(--blue));font-size:17px;font-weight:600;cursor:pointer}
+.btn.sm{min-height:44px;padding:0 14px;border-radius:var(--r);font-size:15px}
+.btn.dark{background:rgb(var(--blue));color:#fff}
+.btn[disabled]{opacity:1;background:rgb(var(--fill) / .3);color:rgb(var(--label3))}
+.chip{min-height:40px;padding:0 16px;border:0;border-radius:999px;background:rgb(var(--fill) / .15);color:rgb(var(--label));font-size:15px;font-weight:600}
+.chip.on{background:rgb(var(--blue));color:#fff}
+.btn,.chip,nav.tabs button{transition:transform .12s ease,opacity .12s ease,background-color .16s}
+.btn:active,.chip:active,nav.tabs button:active{transform:scale(.97);opacity:.85}
 
 /* Schede */
-.card{background:#fff;border:1px solid var(--line);border-radius:var(--r)}
-.card.dash{border:1px dashed #98A2B3}
-.card.grey{background:var(--blue-50);border-color:var(--line)}
-.card.closed{background:#F2F4F7;border-color:#E4E7EC;color:#667085}
-.t{font-weight:600}
-.s{color:var(--ink2)}
-.sec{color:var(--ink2);font-weight:600;letter-spacing:.06em}
-.hint{color:var(--ink2)}
-.warn{color:var(--blue-press);font-weight:600}
+.card{background:rgb(var(--card));border:0;border-radius:var(--r2);padding:12px 16px;box-shadow:0 1px 2px rgb(0 0 0 / .04);color:rgb(var(--label))}
+.card.dash{border:0;box-shadow:inset 0 0 0 1.5px rgb(var(--orange) / .55)}
+.card.grey{background:rgb(var(--blue) / .1);box-shadow:none}
+.card.closed{background:rgb(var(--card2));color:rgb(var(--label2));box-shadow:none}
+.t{font-size:17px;font-weight:600}
+.s{font-size:14px;color:rgb(var(--label2))}
+.sec{margin-top:8px;padding:0 4px;font-size:13px;font-weight:500;letter-spacing:.04em;color:rgb(var(--label2))}
+.hint{font-size:13px;color:rgb(var(--label2))}
+.warn{font-size:13px;font-weight:600;color:rgb(var(--blue))}
 
-/* Stati: sfondo chiaro + testo scuro + pallino (il testo dello stato resta sempre scritto) */
-.badge{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:3px 10px 3px 8px;font-weight:600;
- background:#FEFBE8;color:#854A0E;--dot:#EAB308}
-.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot);flex:none}
-.badge.fill{background:#FFF4ED;color:#B93815;--dot:#EF6820}
-.badge.dbl{background:#FEF3F2;color:#B42318;outline:0;--dot:#D92D20}
-.card.closed .badge{background:#E4E7EC;color:#475467;--dot:#98A2B3}
-.tag{background:var(--blue-100);color:var(--blue-press);border:0;border-radius:6px;font-weight:600}
+/* Stati (testo sempre scritto): In scadenza arancio, Urgente rosso tenue, Scaduto rosso pieno */
+.badge{display:inline-flex;align-items:center;border:0;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:rgb(var(--orange) / .15);color:rgb(var(--orange))}
+.badge.fill{background:rgb(var(--red) / .15);color:rgb(var(--red))}
+.badge.dbl{background:rgb(var(--red));color:#fff;outline:0}
+.card.closed .badge{background:rgb(var(--fill) / .2);color:rgb(var(--label2))}
+.tag{border:0;border-radius:6px;background:rgb(var(--blue) / .15);color:rgb(var(--blue));font-weight:600}
 
 /* Campi */
-.f label{font-weight:600}
-input,select{border:1px solid var(--field);border-radius:var(--r2);color:var(--ink);background:#fff}
-input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,113,227,.2)}
-input.auto{border:1px dashed var(--blue);background:var(--blue-50)}
-input[readonly]{background:#F2F4F7}
-input[type=checkbox]{accent-color:var(--blue)}
-.photo{border:1px dashed var(--field);border-radius:var(--r2);background:var(--blue-50);color:var(--ink2)}
+.f{gap:6px}
+.f label{padding:0 4px;font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:rgb(var(--label2))}
+input,select{min-height:52px;border:0;border-radius:var(--r);padding:0 16px;font-size:17px;background:rgb(var(--card));color:rgb(var(--label));
+ box-shadow:inset 0 0 0 1px rgb(var(--sep) / .15);transition:box-shadow .12s}
+input:focus,select:focus{outline:none;box-shadow:inset 0 0 0 2px rgb(var(--blue))}
+input.auto{border:0;background:rgb(var(--blue) / .08);box-shadow:inset 0 0 0 1.5px rgb(var(--blue) / .6)}
+input[readonly]{background:rgb(var(--fill) / .12);color:rgb(var(--label2))}
+input[type=date],input[type=datetime-local]{padding:0 10px}
+input[type=checkbox]{box-shadow:none;accent-color:rgb(var(--blue))}
+.chk{font-size:15px;font-weight:500}
+.photo{border:0;border-radius:var(--r);background:rgb(var(--card));box-shadow:inset 0 0 0 1.5px rgb(var(--sep) / .2);color:rgb(var(--label2))}
 
-/* Messaggi e finestre di conferma */
-.msg{border:0;border-radius:var(--r2);background:var(--blue-100);color:#0B3D7A}
-.overlay{background:rgba(16,24,40,.45)}
-.modal{border:0;border-radius:16px;box-shadow:0 10px 30px rgba(16,24,40,.18)}
+/* Messaggi e finestre */
+.msg{border:0;border-radius:var(--r);background:rgb(var(--blue) / .12);color:rgb(var(--label))}
+.overlay{background:rgb(0 0 0 / .4)}
+.modal{border:0;border-radius:var(--r2);background:rgb(var(--card));color:rgb(var(--label));box-shadow:0 10px 40px rgb(0 0 0 / .18)}
+#netbar{background:rgb(var(--orange));color:#fff;font-size:13px;font-weight:600;padding-top:calc(6px + env(safe-area-inset-top))}
+#vf .btn{background:rgb(255 255 255 / .18);color:#fff}
+#vf .btn.dark{background:rgb(var(--blue))}
+.vfwrap{position:relative;flex:1;min-height:0;overflow:hidden}
+#vf .vfwrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#vfbox{position:absolute;left:6%;right:6%;top:30%;height:30%;border:2px solid #fff;border-radius:16px;box-shadow:0 0 0 9999px rgb(0 0 0 / .45);pointer-events:none}
+.ocrl{display:flex;flex-wrap:wrap;gap:8px}
+.ocrl .chip{min-height:36px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.ocrl .chip.to{background:none;box-shadow:inset 0 0 0 1px rgb(var(--sep) / .25);font-weight:600}
+.ocrl .chip.to.on{background:rgb(var(--blue));box-shadow:none}
 
-/* Movimento: solo colore, 120 ms; spento se il telefono chiede meno animazioni */
-.btn,.chip,nav.tabs button,input,select{transition:background-color .12s,color .12s,border-color .12s,box-shadow .12s}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
-
-/* Tabella del report: morbida a schermo; in stampa restano i bordi neri di prima */
 @media screen{
- th,td{border:1px solid var(--line)}
- th{background:var(--blue-50)}
- tr.cl td{background:#F2F4F7}
+ th,td{border:0;border-bottom:1px solid rgb(var(--sep) / .2)}
+ th{background:rgb(var(--card2));color:rgb(var(--label2));font-weight:600}
+ td{background:rgb(var(--card))}
+ tr.cl td{background:rgb(var(--card2));color:rgb(var(--label2))}
+ .tbl{border-radius:var(--r);box-shadow:0 1px 2px rgb(0 0 0 / .04)}
+ .sign .line{border-bottom-color:rgb(var(--label))}
 }
-
-/* Font: Roboto su Android, font di sistema Apple su iPhone */
-body,button,input,select,.btn,.chip,.badge,.tag,nav.tabs button,#vf p{font-family:-apple-system,BlinkMacSystemFont,Roboto,"Segoe UI","Helvetica Neue",Arial,sans-serif}
+@media print{
+ body,#app{background:#fff;color:#111}
+ .card{box-shadow:none;border:1.5px solid #111}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -175,7 +215,7 @@ body,button,input,select,.btn,.chip,.badge,.tag,nav.tabs button,#vf p{font-famil
 <div id="netbar" hidden>Senza connessione: i dati potrebbero non essere aggiornati.</div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="gal" accept="image/*" hidden>
-<div id="vf" hidden><video id="vfv" playsinline muted autoplay></video><p>Inquadra l'etichetta da vicino, senza riflessi</p><div class="vfbar"><button type="button" class="btn" data-a="vfClose">Annulla</button><button type="button" class="btn dark" data-a="vfSnap">Scatta</button></div></div>
+<div id="vf" hidden><div class="vfwrap"><video id="vfv" playsinline muted autoplay></video><div id="vfbox"></div></div><p>Metti lotto e scadenza dentro il riquadro, da vicino e senza riflessi</p><div class="vfbar"><button type="button" class="btn" data-a="vfClose">Annulla</button><button type="button" class="btn dark" data-a="vfSnap">Scatta</button></div></div>
 
 <script>
 'use strict';
@@ -309,35 +349,87 @@ function saveSettings(msg){   // legge i valori dalle caselle: soglie e dati del
 }
 
 /* ====== Lettura etichetta ====== */
-function parseLabel(text){
-  const out={};const t=String(text||'').replace(/\r/g,'');
-  const re=/(\d{1,2})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{4}|\d{2})\b/g;let m;const dates=[];
-  while((m=re.exec(t))){
-    let d=+m[1],mo=+m[2],y=+m[3];if(y<100)y+=2000;
-    if(mo<1||mo>12||d<1||d>31||y<2020||y>2100)continue;
-    const before=t.slice(Math.max(0,m.index-28),m.index);
-    dates.push({iso:y+'-'+pad(mo)+'-'+pad(d),flag:/scad|entro|consumar|tmc|best|exp|da cons/i.test(before)});
-  }
-  if(dates.length){const f=dates.find(x=>x.flag);out.scad=(f||dates.slice().sort((a,b)=>a.iso<b.iso?1:-1)[0]).iso}
-  let l=/\b(?:lotto|lot)\b\s*[:.\-nN°]*\s*([A-Z0-9][A-Z0-9\-\/]{2,})/i.exec(t)||/\bL\s*[:.\-]?\s*(\d[A-Z0-9\-\/]{2,})/.exec(t);
-  if(l)out.lotto=l[1].toUpperCase();
-  const low=t.toLowerCase().replace(/\s+/g,' ');let best='';
-  knownArticles().forEach(a=>{if(a.length>best.length&&low.includes(a))best=a});
-  if(best)out.articolo=db.openings.concat(db.arrivals).map(o=>o.articolo).find(n=>akey(n)===best)||best;
+const MESI={GEN:1,JAN:1,FEB:2,MAR:3,APR:4,MAG:5,MAY:5,GIU:6,JUN:6,LUG:7,JUL:7,AGO:8,AUG:8,SET:9,SEP:9,OTT:10,OCT:10,NOV:11,DIC:12,DEC:12};
+const KW_SCAD=/scad|entro|consum|t\.?m\.?c|best|\bbb\b|\bbbe\b|exp|use by|prefer|da cons/i;
+const KW_PROD=/prod|confez|packed|lavoraz|imball|\bpkd\b/i;
+/* L'OCR confonde spesso lettere e cifre (O→0, I/l→1, S→5, B→8): si corregge solo dentro i gruppi che sembrano date */
+function digitsFix(s){return s.replace(/[OoQD]/g,'0').replace(/[Il|!]/g,'1').replace(/[Ss]/g,'5').replace(/B/g,'8').replace(/Z/g,'2')}
+function labelDates(t){
+  const out=[];
+  const add=(i,d,mo,y,monthOnly)=>{
+    if(y<100)y+=2000;if(!(mo>=1&&mo<=12&&d>=1&&d<=31&&y>=2020&&y<=2100))return;
+    const before=t.slice(Math.max(0,i-40),i);const near=before.slice(-22);
+    const scad=KW_SCAD.test(before),prod=KW_PROD.test(near)&&!KW_SCAD.test(near);
+    if(monthOnly&&!scad)return;
+    out.push({iso:y+'-'+pad(mo)+'-'+pad(d),scad,prod});
+  };
+  const N='[0-9OoIl|SB]';let m;
+  const re1=new RegExp('(?<![0-9])('+N+'{1,2}) ?[\\/\\.\\-,] ?('+N+'{1,2}) ?[\\/\\.\\-,] ?('+N+'{4}|'+N+'{2})(?![0-9])','g');
+  while((m=re1.exec(t)))add(m.index,+digitsFix(m[1]),+digitsFix(m[2]),+digitsFix(m[3]));
+  const re2=/(?<!\d)(\d{1,2})\s*[\/\.\-]?\s*(GEN|FEB|MAR|APR|MAG|GIU|LUG|AGO|SET|OTT|NOV|DIC|JAN|MAY|JUN|JUL|AUG|SEP|OCT|DEC)[A-Z]*\.?\s*[\/\.\-]?\s*(\d{4}|\d{2})(?!\d)/gi;
+  while((m=re2.exec(t)))add(m.index,+m[1],MESI[m[2].toUpperCase()],+m[3]);
+  // "entro fine 11/2026": ultimo giorno del mese, solo se c'è una parola di scadenza vicino
+  const re3=/(?<![\d\/\.\-])(\d{1,2}) ?[\/\.\-] ?(20\d{2})(?![\d\/\.\-])/g;
+  while((m=re3.exec(t))){const mo=+m[1],y=+m[2];if(mo>=1&&mo<=12)add(m.index,new Date(y,mo,0).getDate(),mo,y,true)}
+  // date senza separatori subito dopo "scad"/"entro": 12112026 o 121126
+  const re4=/(?:scad\w*|entro(?: il)?|exp\w*|tmc)\W{0,6}(\d{2})(\d{2})(\d{4}|\d{2})(?!\d)/gi;
+  while((m=re4.exec(t)))add(m.index+m[0].length-m[1].length-m[2].length-m[3].length,+m[1],+m[2],+m[3]);
   return out;
 }
-let tessLoading=null;
+function labelLot(t){
+  const ok=v=>v&&/\d/.test(v)&&v.length>=3&&v.length<=24;
+  const clean=v=>String(v||'').toUpperCase().replace(/[.\-\/:,;]+$/,'');
+  let m=/\b(?:lotto|l[o0]tt[o0]|lot|lote|batch|partita)\b\.?\s*(?:n[r°o]?\.?|°|#)?\s*[:.\-]?\s*([A-Z0-9][A-Z0-9\-\/\.]*(?: [0-9][A-Z0-9\-\/]*)?)/i.exec(t);
+  if(m&&ok(clean(m[1])))return clean(m[1]).replace(/ /g,'');
+  m=/(?:^|[\s(])L\s*[:.\-]?\s*([0-9][A-Z0-9\-\/]{2,})/m.exec(t);
+  if(m&&ok(clean(m[1])))return clean(m[1]);
+  return '';
+}
+function labelLines(t){
+  const seen=new Set();
+  return String(t||'').split('\n').map(s=>s.replace(/[^\p{L}\p{N} .,'%\/\-&]/gu,' ').replace(/\s+/g,' ').trim())
+    .filter(s=>s.length>=3&&s.length<=48&&/\p{L}{3}/u.test(s)&&!seen.has(s.toLowerCase())&&seen.add(s.toLowerCase())).slice(0,12);
+}
+function parseLabel(text){
+  const out={};const t=String(text||'').replace(/\r/g,'');
+  const dates=labelDates(t);
+  const best=dates.find(x=>x.scad)||dates.filter(x=>!x.prod).sort((a,b)=>a.iso<b.iso?1:-1)[0];
+  if(best)out.scad=best.iso;
+  const lot=labelLot(t);if(lot)out.lotto=lot;
+  const low=t.toLowerCase().replace(/\s+/g,' ');let art='';
+  knownArticles().forEach(a=>{if(a.length>art.length&&low.includes(a))art=a});
+  if(art)out.articolo=db.openings.concat(db.arrivals).map(o=>o.articolo).find(n=>akey(n)===art)||art;
+  return out;
+}
+let tessLoading=null,tessWorker=null;
 function loadTesseract(){
   if(window.Tesseract)return Promise.resolve();
   if(tessLoading)return tessLoading;
   tessLoading=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';s.onload=res;s.onerror=()=>{tessLoading=null;rej(new Error('offline'))};document.head.appendChild(s)});
   return tessLoading;
 }
+/* Un solo "lettore" riusato per tutte le foto: la lingua si scarica una volta sola */
+function ocrWorker(){
+  if(!tessWorker)tessWorker=loadTesseract().then(()=>Tesseract.createWorker('ita+eng',1)).catch(e=>{tessWorker=null;throw e});
+  return tessWorker;
+}
+async function ocrRead(canvas,psm){const w=await ocrWorker();await w.setParameters({tessedit_pageseg_mode:psm,preserve_interword_spaces:'1'});return (await w.recognize(canvas)).data.text||''}
 function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>rej(new Error('img'));i.src=u})}
-function scaled(img,max){const r=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c}
-function enhance(c){const x=c.getContext('2d');const id=x.getImageData(0,0,c.width,c.height);const p=id.data;
-  for(let i=0;i<p.length;i+=4){let g=0.3*p[i]+0.59*p[i+1]+0.11*p[i+2];g=(g-128)*1.5+128;g=g<0?0:g>255?255:g;p[i]=p[i+1]=p[i+2]=g}
-  x.putImageData(id,0,0);return c}
+/* Ridimensiona (anche ingrandendo fino a 2x: l'OCR legge male il testo piccolo) */
+function scaled(img,max,up){const w=img.width,h=img.height;const r=Math.min(up?2:1,max/Math.max(w,h));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*r));c.height=Math.max(1,Math.round(h*r));const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(img,0,0,c.width,c.height);return c}
+/* Grigi con contrasto automatico; con bin=true bianco/nero puro (soglia di Otsu) */
+function enhance(src,bin){
+  const c=document.createElement('canvas');c.width=src.width;c.height=src.height;const x=c.getContext('2d');x.drawImage(src,0,0);
+  const id=x.getImageData(0,0,c.width,c.height);const p=id.data;const n=p.length/4;const hist=new Array(256).fill(0);const g=new Uint8ClampedArray(n);
+  for(let i=0;i<n;i++){const v=Math.round(0.3*p[i*4]+0.59*p[i*4+1]+0.11*p[i*4+2]);g[i]=v;hist[v]++}
+  let lo=0,hi=255,acc=0;for(;lo<255&&(acc+=hist[lo])<n*0.02;lo++);acc=0;for(;hi>0&&(acc+=hist[hi])<n*0.02;hi--);
+  const span=Math.max(1,hi-lo);let th=128;
+  if(bin){const h2=new Array(256).fill(0);for(let i=0;i<n;i++)h2[Math.max(0,Math.min(255,Math.round((g[i]-lo)*255/span)))]++;
+    let sum=0;for(let i=0;i<256;i++)sum+=i*h2[i];let sB=0,wB=0,best=0;
+    for(let i=0;i<256;i++){wB+=h2[i];if(!wB)continue;const wF=n-wB;if(!wF)break;sB+=i*h2[i];const mB=sB/wB,mF=(sum-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);if(v>best){best=v;th=i}}}
+  for(let i=0;i<n;i++){let v=(g[i]-lo)*255/span;v=v<0?0:v>255?255:v;if(bin)v=v>th?255:0;p[i*4]=p[i*4+1]=p[i*4+2]=v}
+  x.putImageData(id,0,0);return c;
+}
 /* Mirino interno: impone la camera posteriore (l'attributo capture è solo un suggerimento e alcuni telefoni lo ignorano) */
 let vfStream=null;
 async function openCamera(){
@@ -349,6 +441,8 @@ async function openCamera(){
     try{vfStream=await md.getUserMedia({audio:false,video:Object.assign({facingMode:{ideal:'environment'}},base)})}
     catch(e2){if(ui.form){ui.form.ocr='Fotocamera non disponibile: consenti l\'accesso alla fotocamera nelle impostazioni del browser, oppure usa "Galleria".';render()}return}
   }
+  // messa a fuoco continua, dove il telefono la supporta
+  try{await vfStream.getVideoTracks()[0].applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}
   const v=$('#vfv');v.srcObject=vfStream;$('#vf').hidden=false;
   try{await v.play()}catch(e){}
 }
@@ -358,24 +452,41 @@ function closeCamera(){
 }
 function snapCamera(){
   const v=$('#vfv');if(!vfStream||!v.videoWidth)return;
-  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
-  c.getContext('2d').drawImage(v,0,0);closeCamera();
+  // ritaglia solo il riquadro bianco del mirino (il video è mostrato "a riempimento")
+  const vw=v.videoWidth,vh=v.videoHeight,W=v.clientWidth,H=v.clientHeight;
+  const s=Math.max(W/vw,H/vh),ox=(W-vw*s)/2,oy=(H-vh*s)/2;
+  const vr=v.getBoundingClientRect(),br=$('#vfbox').getBoundingClientRect();
+  let sx=(br.left-vr.left-ox)/s,sy=(br.top-vr.top-oy)/s,sw=br.width/s,sh=br.height/s;
+  sx=Math.max(0,sx);sy=Math.max(0,sy);sw=Math.min(vw-sx,sw);sh=Math.min(vh-sy,sh);
+  const c=document.createElement('canvas');c.width=Math.round(sw);c.height=Math.round(sh);
+  c.getContext('2d').drawImage(v,sx,sy,sw,sh,0,0,c.width,c.height);closeCamera();
   c.toBlob(b=>handlePhoto(b),'image/jpeg',0.92);
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden)closeCamera()});
 async function handlePhoto(file){
   if(!file||!ui.form)return;
-  const f=ui.form;f.ocr='Lettura della foto in corso… (la prima volta può richiedere qualche secondo)';render();
+  const f=ui.form;f.ocr='Lettura della foto in corso… (la prima volta può richiedere qualche secondo)';f.ocrLines=[];render();
   try{
     const img=await loadImg(file);
-    f.foto=scaled(img,700).toDataURL('image/jpeg',0.6);f.fotoNew=true;
-    const oc=enhance(scaled(img,1500));
-    await loadTesseract();
-    const r=await Tesseract.recognize(oc,'ita');
-    const p=parseLabel(r.data.text);f.auto=f.auto||{};let n=0;
-    ['articolo','lotto','scad'].forEach(k=>{if(p[k]){f[k]=p[k];f.auto[k]=true;n++}});
-    if(p.articolo&&f.kind==='open'){applyDuration(f);}
-    f.ocr=n?('Letti '+n+' campi dalla foto: controlla quelli tratteggiati e correggi se serve.'):'Non sono riuscito a leggere i dati: compila a mano.';
+    f.foto=scaled(img,700).toDataURL('image/jpeg',0.6);f.fotoNew=true;render();
+    const base=scaled(img,2000,true);
+    let text=await ocrRead(enhance(base,false),'11');
+    let p=parseLabel(text);
+    if(!p.scad||!p.lotto){   // seconda lettura in bianco/nero se manca qualcosa
+      if(ui.form!==f)return;
+      f.ocr='Ancora un momento…';render();
+      text+='\n'+await ocrRead(enhance(base,true),'6');
+      p=parseLabel(text);
+    }
+    if(ui.form!==f)return;
+    f.auto=f.auto||{};let n=0;const miss=[];
+    // si riempiono solo i campi vuoti o già compilati dalla foto: quello scritto a mano non si tocca
+    [['articolo','articolo'],['lotto','lotto'],['scad','scadenza']].forEach(([k,lab])=>{
+      if(p[k]&&(!f[k]||f.auto[k])){f[k]=p[k];f.auto[k]=true;n++}else if(!p[k]&&!f[k])miss.push(lab)});
+    if(f.auto.articolo&&f.kind==='open')applyDuration(f);
+    f.ocrLines=labelLines(text);if(!f.ocrTo)f.ocrTo='articolo';
+    f.ocr=(n?'Letti '+n+' campi dalla foto: controlla quelli evidenziati.':'Non sono riuscito a riconoscere i dati.')+
+      (miss.length?' Mancano: '+miss.join(', ')+'.':'')+(f.ocrLines.length?' Puoi toccare le righe lette qui sotto per copiarle (più righe di seguito si uniscono).':' Compila a mano.');
   }catch(e){
     f.ocr=(e&&e.message==='offline')?'Lettura automatica non disponibile (connessione assente): compila a mano.':'Lettura non riuscita: compila a mano.';
   }
@@ -411,8 +522,11 @@ async function saveForm(){
 function topbar(title,sub,right){return `<header class="top"><div style="min-width:0"><h1>${esc(title)}</h1>${sub?`<small>${esc(sub)}</small>`:''}</div>${right||''}</header>`}
 function who(){return sess.dept+' · operatore: '+sess.op}
 function tabs(a){
-  const t=[['list','Aperture'],['arrivals','Arrivi'],['report','Report'],['settings','Impostazioni']];
-  return `<nav class="tabs">${t.map(x=>`<button type="button" data-a="go" data-v="${x[0]}" class="${a===x[0]?'active':''}">${x[1]}</button>`).join('')}</nav>`;
+  const t=[['list','Aperture','<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>'],
+    ['arrivals','Arrivi','<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>'],
+    ['report','Report','<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 18v-2M12 18v-6M16 18v-4"/>'],
+    ['settings','Impostazioni','<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>']];
+  return `<nav class="tabs">${t.map(x=>`<button type="button" data-a="go" data-v="${x[0]}" class="${a===x[0]?'active':''}" ${a===x[0]?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${x[2]}</svg>${x[1]}</button>`).join('')}</nav>`;
 }
 function msgBox(){if(!ui.msg)return '';const m=ui.msg;ui.msg='';return `<div class="msg" role="status">${esc(m)}</div>`}
 
@@ -503,7 +617,9 @@ function photoBlock(){
   const f=ui.form;
   return `<div class="row"><div class="photo">${f.foto?`<img src="${f.foto}" alt="Foto dell'etichetta">`:'Anteprima foto etichetta'}</div>
   <div class="col w130"><button type="button" class="btn dark" style="min-height:52px" data-a="cam">Scatta foto</button><button type="button" class="btn" style="min-height:52px" data-a="gal">Galleria</button></div></div>
-  <p class="hint" id="ocrmsg">${esc(f.ocr||"Inquadra solo l'etichetta, da vicino e senza riflessi. I campi si compilano da soli: controllali e correggi.")}</p>`;
+  <p class="hint" id="ocrmsg">${esc(f.ocr||"Inquadra solo l'etichetta, da vicino e senza riflessi. I campi si compilano da soli: controllali e correggi.")}</p>
+  ${f.ocrLines&&f.ocrLines.length?`<div class="ocrl"><span class="hint" style="align-self:center">Copia in:</span>${[['articolo','Articolo'],['lotto','Lotto']].map(x=>`<button type="button" class="chip to ${f.ocrTo===x[0]?'on':''}" data-a="ocrTo" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>
+  <div class="ocrl">${f.ocrLines.map((l,i)=>`<button type="button" class="chip" data-a="ocrLine" data-i="${i}">${esc(l)}</button>`).join('')}</div>`:''}`;
 }
 function inp(label,id,key,type,extra){
   const f=ui.form;const auto=f.auto&&f.auto[key];
@@ -733,6 +849,10 @@ const A={
   vfClose:()=>closeCamera(),
   vfSnap:()=>snapCamera(),
   gal:()=>$('#gal').click(),
+  ocrTo:t=>{if(ui.form){ui.form.ocrTo=t.dataset.v;ui.form.ocrSet=null;render()}},
+  // toccando più righe di seguito si uniscono (l'OCR a volte spezza un nome su due righe)
+  ocrLine:t=>{const f=ui.form;if(!f||!f.ocrLines)return;const k=f.ocrTo||'articolo';const l=f.ocrLines[+t.dataset.i]||'';
+    const v=k==='lotto'?l.toUpperCase().replace(/\s+/g,''):l;f[k]=f.ocrSet===k&&f[k]?f[k]+(k==='lotto'?'':' ')+v:v;f.ocrSet=k;if(f.auto)delete f.auto[k];if(k==='articolo')applyDuration(f);render()},
   modalNo:()=>{ui.modal=null;render()},
   modalYes:()=>{const m=ui.modal;ui.modal=null;if(m&&m.fn)m.fn();render()},
   print:()=>window.print(),
@@ -802,7 +922,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.dataset.f&&ui.form){ui.form[t.dataset.f]=t.value;if(ui.form.auto)delete ui.form.auto[t.dataset.f];if(t.dataset.f!=='articolo')refreshForm()}
+  if(t.dataset.f&&ui.form){ui.form[t.dataset.f]=t.value;ui.form.ocrSet=null;if(ui.form.auto)delete ui.form.auto[t.dataset.f];if(t.dataset.f!=='articolo')refreshForm()}
   else if(t.dataset.aInput==='loginNew')ui.login.newName=t.value;
   else if(t.dataset.r){ui.report[t.dataset.r]=t.value;if(t.tagName==='SELECT')render()}
 });
