@@ -375,11 +375,38 @@ function labelDates(t){
   while((m=re4.exec(t)))add(m.index+m[0].length-m[1].length-m[2].length-m[3].length,+m[1],+m[2],+m[3]);
   return out;
 }
+// codice di lotto plausibile: almeno 2 cifre; niente date, pesi o tare (0.140)
+const lotOk=v=>v&&(v.match(/\d/g)||[]).length>=2&&v.length>=3&&v.length<=24&&!/^\d{1,2}[\/.\-]\d{1,2}([\/.\-]\d{2,4})?$/.test(v)
+  &&!/^\d+([.,]\d+)?(G|GR|KG|ML|CL|L|C|%)$/.test(v)&&!/^\d[.,]\d+$/.test(v);
+const lotClean=v=>String(v||'').toUpperCase().replace(/^[.\-\/:,;°|]+|[.\-\/:,;|]+$/g,'');
+/* Per posizione nella foto: il codice subito a destra o subito sotto la parola "Lotto" (l'ordine del testo letto non è affidabile) */
+function lotByLayout(words){
+  let best='',bd=1e9;
+  (words||[]).filter(k=>/^(l[o0]tt?[o0]|lot|lote|batch)[:.]?$/i.test(String(k.text).trim())).forEach(k=>{
+    const kb=k.bbox,kh=kb.y1-kb.y0,kw=kb.x1-kb.x0;
+    words.forEach(w=>{
+      const v=lotClean(w.text);if(!lotOk(v)||/^\d{8,}$/.test(v))return;const b=w.bbox;
+      const right=Math.abs((b.y0+b.y1)/2-(kb.y0+kb.y1)/2)<kh*0.7&&b.x0>=kb.x1-kw*0.1&&b.x0-kb.x1<kw*4;
+      const below=b.y0>=kb.y1-kh*0.3&&b.y0-kb.y1<kh*2.5&&b.x0<kb.x1+kw*0.5&&b.x1>kb.x0-kw*0.5;
+      if(!right&&!below)return;
+      const d=right?b.x0-kb.x1:(b.y0-kb.y1)*1.5;if(d<bd){bd=d;best=v}
+    });
+  });
+  return best;
+}
 function labelLot(t){
-  const ok=v=>v&&/\d/.test(v)&&v.length>=3&&v.length<=24;
-  const clean=v=>String(v||'').toUpperCase().replace(/[.\-\/:,;]+$/,'');
-  let m=/\b(?:lotto|l[o0]tt[o0]|lot|lote|batch|partita)\b\.?\s*(?:n[r°o]?\.?|°|#)?\s*[:.\-]?\s*([A-Z0-9][A-Z0-9\-\/\.]*(?: [0-9][A-Z0-9\-\/]*)?)/i.exec(t);
-  if(m&&ok(clean(m[1])))return clean(m[1]).replace(/ /g,'');
+  const ok=lotOk,clean=lotClean;
+  const re=/\b(?:lotto|l[o0]tt[o0]|lot|lote|batch|partita)\b\.?\s*(?:n[r°o]?\.?|°|#)?\s*[:.\-]?/gi;let m;
+  while((m=re.exec(t))){
+    const after=t.slice(m.index+m[0].length,m.index+m[0].length+80);
+    // sulla stessa riga (anche "AB 1234")...
+    const same=/^[ \t]*([A-Z0-9][A-Z0-9\-\/\.]*(?: [0-9][A-Z0-9\-\/]*)?)/i.exec(after);
+    if(same&&ok(clean(same[1]).replace(/ /g,'')))return clean(same[1]).replace(/ /g,'');
+    // ...oppure nelle righe subito sotto, come nelle etichette della bilancia ("Lotto:" a capo "09294")
+    // si saltano i pezzi di codice a barre (8+ cifre di fila): meglio un campo vuoto che un lotto sbagliato
+    const tok=after.split(/[\s:;|]+/).map(clean).find(x=>ok(x)&&!/^\d{8,}$/.test(x));
+    if(tok)return tok;
+  }
   m=/(?:^|[\s(])L\s*[:.\-]?\s*([0-9][A-Z0-9\-\/]{2,})/m.exec(t);
   if(m&&ok(clean(m[1])))return clean(m[1]);
   return '';
@@ -420,7 +447,7 @@ function ocrWorker(){
   if(!tessWorker)tessWorker=loadTesseract().then(()=>Tesseract.createWorker('ita+eng',1)).catch(e=>{tessWorker=null;throw e});
   return tessWorker;
 }
-async function ocrRead(canvas,psm){const w=await ocrWorker();await w.setParameters({tessedit_pageseg_mode:psm,preserve_interword_spaces:'1'});return (await w.recognize(canvas)).data.text||''}
+async function ocrRead(canvas,psm,words){const w=await ocrWorker();await w.setParameters({tessedit_pageseg_mode:psm,preserve_interword_spaces:'1'});const d=(await w.recognize(canvas)).data;if(words&&d.words)words.push(...d.words);return d.text||''}
 function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>rej(new Error('img'));i.src=u})}
 /* Ridimensiona (anche ingrandendo fino a 2x: l'OCR legge male il testo piccolo) */
 function scaled(img,max,up){const w=img.width,h=img.height;const r=Math.min(up?2:1,max/Math.max(w,h));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*r));c.height=Math.max(1,Math.round(h*r));const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(img,0,0,c.width,c.height);return c}
@@ -442,7 +469,7 @@ let vfStream=null;
 async function openCamera(){
   const md=navigator.mediaDevices;
   if(!md||!md.getUserMedia){$('#cam').click();return}
-  const base={width:{ideal:1920},height:{ideal:1080}};
+  const base={width:{ideal:2560},height:{ideal:1440}};
   try{vfStream=await md.getUserMedia({audio:false,video:Object.assign({facingMode:{exact:'environment'}},base)})}
   catch(e){
     try{vfStream=await md.getUserMedia({audio:false,video:Object.assign({facingMode:{ideal:'environment'}},base)})}
@@ -457,16 +484,32 @@ function closeCamera(){
   if(vfStream){vfStream.getTracks().forEach(t=>t.stop());vfStream=null}
   const v=$('#vfv');if(v)v.srcObject=null;const o=$('#vf');if(o)o.hidden=true;
 }
-function snapCamera(){
-  const v=$('#vfv');if(!vfStream||!v.videoWidth)return;
-  // ritaglia solo il riquadro bianco del mirino (il video è mostrato "a riempimento")
+let snapping=false;
+async function snapCamera(){
+  const v=$('#vfv');if(!vfStream||!v.videoWidth||snapping)return;
+  snapping=true;const p=$('#vf p'),pTxt=p.textContent;p.textContent='Scatto in corso, tieni fermo il telefono…';
+  // ritaglia il riquadro bianco del mirino (il video è mostrato "a riempimento"), con un po' di margine
   const vw=v.videoWidth,vh=v.videoHeight,W=v.clientWidth,H=v.clientHeight;
   const s=Math.max(W/vw,H/vh),ox=(W-vw*s)/2,oy=(H-vh*s)/2;
   const vr=v.getBoundingClientRect(),br=$('#vfbox').getBoundingClientRect();
-  let sx=(br.left-vr.left-ox)/s,sy=(br.top-vr.top-oy)/s,sw=br.width/s,sh=br.height/s;
+  const mx=br.width*0.06,my=br.height*0.08;
+  let sx=(br.left-mx-vr.left-ox)/s,sy=(br.top-my-vr.top-oy)/s,sw=(br.width+2*mx)/s,sh=(br.height+2*my)/s;
   sx=Math.max(0,sx);sy=Math.max(0,sy);sw=Math.min(vw-sx,sw);sh=Math.min(vh-sy,sh);
-  const c=document.createElement('canvas');c.width=Math.round(sw);c.height=Math.round(sh);
-  c.getContext('2d').drawImage(v,sx,sy,sw,sh,0,0,c.width,c.height);closeCamera();
+  // foto vera a piena risoluzione dove il telefono lo permette: il fotogramma del video è troppo piccolo per leggere il lotto
+  let src=v,k=1,px=0,py=0;
+  try{
+    if(window.ImageCapture){
+      const im=await loadImg(await new ImageCapture(vfStream.getVideoTracks()[0]).takePhoto());
+      if((im.width>im.height)===(vw>vh)&&im.width>vw){
+        // il video corrisponde al centro della foto, con le proporzioni del video
+        const ra=vw/vh;let cw=im.width,ch=im.height;if(cw/ch>ra)cw=ch*ra;else ch=cw/ra;
+        src=im;k=cw/vw;px=(im.width-cw)/2;py=(im.height-ch)/2;
+      }
+    }
+  }catch(e){}
+  const c=document.createElement('canvas');c.width=Math.round(sw*k);c.height=Math.round(sh*k);
+  c.getContext('2d').drawImage(src,px+sx*k,py+sy*k,sw*k,sh*k,0,0,c.width,c.height);
+  closeCamera();snapping=false;p.textContent=pTxt;
   c.toBlob(b=>handlePhoto(b),'image/jpeg',0.92);
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden)closeCamera()});
@@ -477,20 +520,21 @@ async function handlePhoto(file){
     const img=await loadImg(file);
     f.foto=scaled(img,700).toDataURL('image/jpeg',0.6);f.fotoNew=true;render();
     const base=scaled(img,2000,true);
-    let text=await ocrRead(enhance(base,false),'11');
-    let p=parseLabel(text);
+    const words=[];const parse=()=>{const q=parseLabel(text);const ll=lotByLayout(words);if(ll)q.lotto=ll;return q};
+    let text=await ocrRead(enhance(base,false),'11',words);
+    let p=parse();
     if(!p.scad||!p.lotto){   // seconda lettura in bianco/nero se manca qualcosa
       if(ui.form!==f)return;
       f.ocr='Ancora un momento…';render();
-      text+='\n'+await ocrRead(enhance(base,true),'6');
-      p=parseLabel(text);
+      text+='\n'+await ocrRead(enhance(base,true),'6',words);
+      p=parse();
     }
     if(!p.scad||!p.lotto){   // terza lettura per lotto e scadenza stampati "a puntini": si sfoca per unire i punti
       if(ui.form!==f)return;
       const b=document.createElement('canvas');b.width=base.width;b.height=base.height;
       const bx=b.getContext('2d');bx.filter='blur('+Math.max(2,base.width/600)+'px)';bx.drawImage(base,0,0);
-      text+='\n'+await ocrRead(enhance(b,true),'6');
-      p=parseLabel(text);
+      text+='\n'+await ocrRead(enhance(b,true),'6',words);
+      p=parse();
     }
     if(ui.form!==f)return;
     f.auto=f.auto||{};const miss=[];
