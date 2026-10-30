@@ -190,10 +190,6 @@ input[type=checkbox]{box-shadow:none;accent-color:rgb(var(--blue))}
 .vfwrap{position:relative;flex:1;min-height:0;overflow:hidden}
 #vf .vfwrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 #vfbox{position:absolute;left:6%;right:6%;top:30%;height:30%;border:2px solid #fff;border-radius:16px;box-shadow:0 0 0 9999px rgb(0 0 0 / .45);pointer-events:none}
-.ocrl{display:flex;flex-wrap:wrap;gap:8px}
-.ocrl .chip{min-height:36px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
-.ocrl .chip.to{background:none;box-shadow:inset 0 0 0 1px rgb(var(--sep) / .25);font-weight:600}
-.ocrl .chip.to.on{background:rgb(var(--blue));box-shadow:none}
 
 @media screen{
  th,td{border:0;border-bottom:1px solid rgb(var(--sep) / .2)}
@@ -356,18 +352,21 @@ const KW_PROD=/prod|confez|packed|lavoraz|imball|\bpkd\b/i;
 function digitsFix(s){return s.replace(/[OoQD]/g,'0').replace(/[Il|!]/g,'1').replace(/[Ss]/g,'5').replace(/B/g,'8').replace(/Z/g,'2')}
 function labelDates(t){
   const out=[];
-  const add=(i,d,mo,y,monthOnly)=>{
+  const add=(i,d,mo,y,monthOnly,len)=>{
     if(y<100)y+=2000;if(!(mo>=1&&mo<=12&&d>=1&&d<=31&&y>=2020&&y<=2100))return;
-    const before=t.slice(Math.max(0,i-40),i);const near=before.slice(-22);
+    // parole chiave: sulla stessa riga prima della data, oppure sulla riga sopra se la data apre la riga
+    const ls=t.lastIndexOf('\n',i-1)+1,line=t.slice(ls,i);
+    const prev=t.slice(t.lastIndexOf('\n',ls-2)+1,ls);   // la riga sopra conta solo se non ha già una sua data
+    const before=(/\S/.test(line)?line:/\d{1,2}\s*[\/.\-]\s*\d{1,2}/.test(prev)?'':prev).slice(-40);const near=before.slice(-22);
     const scad=KW_SCAD.test(before),prod=KW_PROD.test(near)&&!KW_SCAD.test(near);
     if(monthOnly&&!scad)return;
-    out.push({iso:y+'-'+pad(mo)+'-'+pad(d),scad,prod});
+    out.push({iso:y+'-'+pad(mo)+'-'+pad(d),scad,prod,i,len:len||10});
   };
   const N='[0-9OoIl|SB]';let m;
   const re1=new RegExp('(?<![0-9])('+N+'{1,2}) ?[\\/\\.\\-,] ?('+N+'{1,2}) ?[\\/\\.\\-,] ?('+N+'{4}|'+N+'{2})(?![0-9])','g');
-  while((m=re1.exec(t)))add(m.index,+digitsFix(m[1]),+digitsFix(m[2]),+digitsFix(m[3]));
+  while((m=re1.exec(t)))add(m.index,+digitsFix(m[1]),+digitsFix(m[2]),+digitsFix(m[3]),false,m[0].length);
   const re2=/(?<!\d)(\d{1,2})\s*[\/\.\-]?\s*(GEN|FEB|MAR|APR|MAG|GIU|LUG|AGO|SET|OTT|NOV|DIC|JAN|MAY|JUN|JUL|AUG|SEP|OCT|DEC)[A-Z]*\.?\s*[\/\.\-]?\s*(\d{4}|\d{2})(?!\d)/gi;
-  while((m=re2.exec(t)))add(m.index,+m[1],MESI[m[2].toUpperCase()],+m[3]);
+  while((m=re2.exec(t)))add(m.index,+m[1],MESI[m[2].toUpperCase()],+m[3],false,m[0].length);
   // "entro fine 11/2026": ultimo giorno del mese, solo se c'è una parola di scadenza vicino
   const re3=/(?<![\d\/\.\-])(\d{1,2}) ?[\/\.\-] ?(20\d{2})(?![\d\/\.\-])/g;
   while((m=re3.exec(t))){const mo=+m[1],y=+m[2];if(mo>=1&&mo<=12)add(m.index,new Date(y,mo,0).getDate(),mo,y,true)}
@@ -385,17 +384,25 @@ function labelLot(t){
   if(m&&ok(clean(m[1])))return clean(m[1]);
   return '';
 }
-function labelLines(t){
-  const seen=new Set();
-  return String(t||'').split('\n').map(s=>s.replace(/[^\p{L}\p{N} .,'%\/\-&]/gu,' ').replace(/\s+/g,' ').trim())
-    .filter(s=>s.length>=3&&s.length<=48&&/\p{L}{3}/u.test(s)&&!seen.has(s.toLowerCase())&&seen.add(s.toLowerCase())).slice(0,12);
+/* Senza la parola "lotto": il codice stampato accanto alla scadenza (es. "12/11/26 L2431" oppure "2431A 12.11.26") */
+function lotNearDate(t,d){
+  if(!d)return '';
+  const s=t.lastIndexOf('\n',d.i)+1,e0=t.indexOf('\n',d.i+d.len),e=e0<0?t.length:e0;
+  const ps=t.lastIndexOf('\n',s-2)+1,ne0=t.indexOf('\n',e+1),ne=ne0<0?t.length:ne0;
+  const pick=str=>str.split(/[\s:;,]+/).map(x=>x.toUpperCase().replace(/^[.\-\/]+|[.\-\/]+$/g,''))
+    .find(x=>/^[A-Z0-9][A-Z0-9\-\/.]{2,15}$/.test(x)&&(x.match(/\d/g)||[]).length>=2
+      &&!/^\d{1,2}[\/.\-]\d{1,2}([\/.\-]\d{2,4})?$/.test(x)&&!/^\d+([.,]\d+)?(G|GR|KG|ML|CL|L|C|%)$/.test(x)
+      &&!/^\d{1,2}[.:]\d{2}$/.test(x)&&!/^(EAN|CE|IT)\d/.test(x));
+  return pick(t.slice(s,d.i)+' '+t.slice(d.i+d.len,e))||pick(t.slice(ps,s)+' '+t.slice(e,ne))||'';
 }
 function parseLabel(text){
   const out={};const t=String(text||'').replace(/\r/g,'');
   const dates=labelDates(t);
-  const best=dates.find(x=>x.scad)||dates.filter(x=>!x.prod).sort((a,b)=>a.iso<b.iso?1:-1)[0];
+  // senza parola "scadenza" vicino: la data più lontana, scartando produzione e date di oltre 2 mesi fa
+  const old=new Date(Date.now()-60*864e5).toISOString().slice(0,10);
+  const best=dates.find(x=>x.scad)||dates.filter(x=>!x.prod&&x.iso>=old).sort((a,b)=>a.iso<b.iso?1:-1)[0];
   if(best)out.scad=best.iso;
-  const lot=labelLot(t);if(lot)out.lotto=lot;
+  const lot=labelLot(t)||lotNearDate(t,best);if(lot)out.lotto=lot;
   const low=t.toLowerCase().replace(/\s+/g,' ');let art='';
   knownArticles().forEach(a=>{if(a.length>art.length&&low.includes(a))art=a});
   if(art)out.articolo=db.openings.concat(db.arrivals).map(o=>o.articolo).find(n=>akey(n)===art)||art;
@@ -465,7 +472,7 @@ function snapCamera(){
 document.addEventListener('visibilitychange',()=>{if(document.hidden)closeCamera()});
 async function handlePhoto(file){
   if(!file||!ui.form)return;
-  const f=ui.form;f.ocr='Lettura della foto in corso… (la prima volta può richiedere qualche secondo)';f.ocrLines=[];render();
+  const f=ui.form;f.ocr='Lettura della foto in corso… (la prima volta può richiedere qualche secondo)';f.ocrText='';render();
   try{
     const img=await loadImg(file);
     f.foto=scaled(img,700).toDataURL('image/jpeg',0.6);f.fotoNew=true;render();
@@ -478,15 +485,22 @@ async function handlePhoto(file){
       text+='\n'+await ocrRead(enhance(base,true),'6');
       p=parseLabel(text);
     }
+    if(!p.scad||!p.lotto){   // terza lettura per lotto e scadenza stampati "a puntini": si sfoca per unire i punti
+      if(ui.form!==f)return;
+      const b=document.createElement('canvas');b.width=base.width;b.height=base.height;
+      const bx=b.getContext('2d');bx.filter='blur('+Math.max(2,base.width/600)+'px)';bx.drawImage(base,0,0);
+      text+='\n'+await ocrRead(enhance(b,true),'6');
+      p=parseLabel(text);
+    }
     if(ui.form!==f)return;
-    f.auto=f.auto||{};let n=0;const miss=[];
+    f.auto=f.auto||{};const miss=[];
     // si riempiono solo i campi vuoti o già compilati dalla foto: quello scritto a mano non si tocca
-    [['articolo','articolo'],['lotto','lotto'],['scad','scadenza']].forEach(([k,lab])=>{
-      if(p[k]&&(!f[k]||f.auto[k])){f[k]=p[k];f.auto[k]=true;n++}else if(!p[k]&&!f[k])miss.push(lab)});
+    [['scad','la scadenza'],['lotto','il lotto'],['articolo','']].forEach(([k,lab])=>{
+      if(p[k]&&(!f[k]||f.auto[k])){f[k]=p[k];f.auto[k]=true}else if(!p[k]&&!f[k]&&lab)miss.push(lab)});
     if(f.auto.articolo&&f.kind==='open')applyDuration(f);
-    f.ocrLines=labelLines(text);if(!f.ocrTo)f.ocrTo='articolo';
-    f.ocr=(n?'Letti '+n+' campi dalla foto: controlla quelli evidenziati.':'Non sono riuscito a riconoscere i dati.')+
-      (miss.length?' Mancano: '+miss.join(', ')+'.':'')+(f.ocrLines.length?' Puoi toccare le righe lette qui sotto per copiarle (più righe di seguito si uniscono).':' Compila a mano.');
+    f.ocrText=text.replace(/\n{2,}/g,'\n').trim();
+    f.ocr=miss.length===2?'Non ho trovato scadenza e lotto: riprova più da vicino, con l\'etichetta dritta nel riquadro, oppure scrivili a mano.':
+      miss.length?'Letto dalla foto: controlla. Non ho trovato '+miss[0]+': scrivilo a mano o riprova la foto.':'Scadenza e lotto letti dalla foto: controllali.';
   }catch(e){
     f.ocr=(e&&e.message==='offline')?'Lettura automatica non disponibile (connessione assente): compila a mano.':'Lettura non riuscita: compila a mano.';
   }
@@ -618,8 +632,7 @@ function photoBlock(){
   return `<div class="row"><div class="photo">${f.foto?`<img src="${f.foto}" alt="Foto dell'etichetta">`:'Anteprima foto etichetta'}</div>
   <div class="col w130"><button type="button" class="btn dark" style="min-height:52px" data-a="cam">Scatta foto</button><button type="button" class="btn" style="min-height:52px" data-a="gal">Galleria</button></div></div>
   <p class="hint" id="ocrmsg">${esc(f.ocr||"Inquadra solo l'etichetta, da vicino e senza riflessi. I campi si compilano da soli: controllali e correggi.")}</p>
-  ${f.ocrLines&&f.ocrLines.length?`<div class="ocrl"><span class="hint" style="align-self:center">Copia in:</span>${[['articolo','Articolo'],['lotto','Lotto']].map(x=>`<button type="button" class="chip to ${f.ocrTo===x[0]?'on':''}" data-a="ocrTo" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>
-  <div class="ocrl">${f.ocrLines.map((l,i)=>`<button type="button" class="chip" data-a="ocrLine" data-i="${i}">${esc(l)}</button>`).join('')}</div>`:''}`;
+  ${f.ocrText?`<details class="hint"><summary>Testo letto dalla foto</summary><pre style="white-space:pre-wrap;font:12px/1.4 ui-monospace,monospace;margin:6px 0 0">${esc(f.ocrText)}</pre></details>`:''}`;
 }
 function inp(label,id,key,type,extra){
   const f=ui.form;const auto=f.auto&&f.auto[key];
@@ -849,10 +862,6 @@ const A={
   vfClose:()=>closeCamera(),
   vfSnap:()=>snapCamera(),
   gal:()=>$('#gal').click(),
-  ocrTo:t=>{if(ui.form){ui.form.ocrTo=t.dataset.v;ui.form.ocrSet=null;render()}},
-  // toccando più righe di seguito si uniscono (l'OCR a volte spezza un nome su due righe)
-  ocrLine:t=>{const f=ui.form;if(!f||!f.ocrLines)return;const k=f.ocrTo||'articolo';const l=f.ocrLines[+t.dataset.i]||'';
-    const v=k==='lotto'?l.toUpperCase().replace(/\s+/g,''):l;f[k]=f.ocrSet===k&&f[k]?f[k]+(k==='lotto'?'':' ')+v:v;f.ocrSet=k;if(f.auto)delete f.auto[k];if(k==='articolo')applyDuration(f);render()},
   modalNo:()=>{ui.modal=null;render()},
   modalYes:()=>{const m=ui.modal;ui.modal=null;if(m&&m.fn)m.fn();render()},
   print:()=>window.print(),
@@ -922,7 +931,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.dataset.f&&ui.form){ui.form[t.dataset.f]=t.value;ui.form.ocrSet=null;if(ui.form.auto)delete ui.form.auto[t.dataset.f];if(t.dataset.f!=='articolo')refreshForm()}
+  if(t.dataset.f&&ui.form){ui.form[t.dataset.f]=t.value;if(ui.form.auto)delete ui.form.auto[t.dataset.f];if(t.dataset.f!=='articolo')refreshForm()}
   else if(t.dataset.aInput==='loginNew')ui.login.newName=t.value;
   else if(t.dataset.r){ui.report[t.dataset.r]=t.value;if(t.tagName==='SELECT')render()}
 });
